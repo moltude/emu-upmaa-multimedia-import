@@ -1,0 +1,24 @@
+# Settings for multimedia_import
+
+# The directory to import files from 
+directory=Z://
+# Does the filename (identifier) need to be unique?
+unique_identifier=true
+
+# You can set metadata values that will apply to all files here as well
+# The keys should be emultimedia column names. Multi-valued fields should have values 
+# seperated by a pipe-bar, '|'.
+
+# Fromat emultimedia metadata as 
+# metadata.<emu column name>
+
+# These values will be overridden by entries in metadata.txt and then within the file itself
+# metadata.* -> metadata.txt -> file metadata
+
+# Resource type
+metadata.DetResourceType="Museum for Publication"
+
+# Creator (a multi-valued field)
+metadata.MulCreator_tab="Penn Museum Photo Studio"
+
+ 
