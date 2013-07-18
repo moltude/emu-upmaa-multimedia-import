@@ -38,7 +38,7 @@ public class Directory {
 	private File [] FILES;
 	
 	/**
-	 * Default constructor. §
+	 * Default constructor. 
 	 */
 	public Directory() {
 		
@@ -49,7 +49,6 @@ public class Directory {
 	 * @param dir - The directory to process 
 	 */
 	public Directory(String dir) {
-		//
 		setLogFiles(dir);
 	}
 
@@ -58,9 +57,11 @@ public class Directory {
 	 * @param dir - Directory to process
 	 */
 	private void setDirectory(String dir) {
+		String date_folder = getDateFolder();
+		
 		directory 			= new File(dir);
-		error_directory 		= new File(dir+java.io.File.separator+"Error"+java.io.File.separator+getDateFolder());
-		success_directory 	= new File(dir+java.io.File.separator+"Success"+java.io.File.separator+getDateFolder());
+		error_directory 	= new File(dir+java.io.File.separator+"Error"+java.io.File.separator+date_folder);
+		success_directory 	= new File(dir+java.io.File.separator+"Success"+java.io.File.separator+date_folder);
 		
 		if(!error_directory.exists())
 			error_directory.mkdirs();
@@ -102,13 +103,14 @@ public class Directory {
 	 * @param genericMetadata
 	 */
 	public void doImport(String directory, Map genericMetadata, Map settings) {
-		if(directory == null) {
+		if(directory == null || !(new File(directory).exists()) ) {
+			logger.fatal("Could not locate import directory. Exiting!");
 			System.exit(-1);
 		}
 		setLogFiles( directory );
 		setDirectory( directory );
 		// Put the stock image metadata in all images and do not resize the images provided
-		readDirectory(genericMetadata, settings.getBoolean("resize"), settings.getBoolean("dup_check"));
+		readDirectory(genericMetadata, settings.getBoolean("dup_check"));
 	}
 	
 	/**
@@ -116,7 +118,7 @@ public class Directory {
 	 * @param stockImageMetadata
 	 * @param resizeImage
 	 */
-	private void readDirectory(Map stockImageMetadata, boolean resizeImage, boolean checkForDuplicateImage) {
+	private void readDirectory(Map stockImageMetadata, boolean checkForDuplicateImage) {
 		try {
 			if(!filesToImportExist()) {
 				// if there are no images to import
@@ -131,9 +133,9 @@ public class Directory {
 				Validator validator = new Validator(file);
 				// Checks EMu for an existing image with a similar file name (to cut down on duplicate images).
 				if( checkForDuplicateImage ) {
-					if ( validator.checkFileNames() ) {
+					if ( validator.isIdentifierUnique() ) {
 						logErrorMessage("WARNING: Possible duplicate image exists for file "+file.getName() + 
-								". Search for  " + file.getName().substring(0, file.getName().indexOf(".")) + 
+								". Search for  " + file.getName().substring(0, file.getName().lastIndexOf(".")) + 
 								" in the 'Identifier' field in the Multimedia module\r\n");
 						moveFile(file, error_directory);
 						addImage = false;
@@ -146,7 +148,7 @@ public class Directory {
 					if(catIrns != null) {
 						stockImageMetadata.putAll( validator.getAuxMetadata()   );
 						stockImageMetadata.putAll( validator.getImageMetadata() );
-						createEMuRecords(catIrns, stockImageMetadata, file, resizeImage);
+						createEMuRecords(catIrns, stockImageMetadata, file);
 					} else { 	
 						// Image metadata does not match EMu data
 						logErrorMessage("Could not find matching catalog record(s) in EMu for " + 
@@ -168,18 +170,17 @@ public class Directory {
 	 * @param catIrns 
 	 * @param stockImageMetadata
 	 * @param file 
-	 * @param resizeImage
 	 */
-	private void createEMuRecords(int[] catIrns, Map stockImageMetadata, File file, boolean resizeImage) {
+	private void createEMuRecords(int[] catIrns, Map stockImageMetadata, File file) {
 		try {
 			// import and link the images
 			
 			// TODO make this smoother
-			Import imgIn = new Import(stockImageMetadata);
+			Import impoter = new Import(stockImageMetadata);
 			// Try to upload and link the image to all catalog records
-			int errNo = imgIn.doImport(file, catIrns);
+			int import_status = impoter.doImport(file, catIrns);
 			// If importAndLinkImage returns 1 then it was sucessful for image and linking to all objects
-			if(errNo == 1) { 
+			if(import_status == 1) { 
 				// 	on success move the image file to another 'success directory'		
 				moveFile(file, success_directory);
 				
@@ -188,12 +189,12 @@ public class Directory {
 //				logger.logObjects(catIrns, file.getName());
 			}
 			// If the image couldn't be linked to all catalog records then log it but move it to success since the image has been added to EMu
-			else if (errNo == 0) {
+			else if (import_status == 0) {
 				logErrorMessage("Could not attach to all catalog records. \t File "+file.getName()+" moved to Error folder.");
 				 moveFile(file, error_directory);
 			}
 			// If the image couldn't be uploaded then move it to error
-			else if (errNo == -1) {
+			else if (import_status == -1) {
 				logErrorMessage("Error importing image. \t File "+file.getName()+" moved to Error folder.");
 				moveFile(file, error_directory);
 			}

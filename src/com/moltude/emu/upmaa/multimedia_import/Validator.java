@@ -2,7 +2,6 @@ package com.moltude.emu.upmaa.multimedia_import;
 
 import java.io.BufferedReader;
 import java.io.File;
-import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
 import java.util.Arrays;
@@ -19,10 +18,7 @@ import com.drew.metadata.iptc.IptcDescriptor;
 import com.drew.metadata.iptc.IptcDirectory;
 import com.drew.metadata.xmp.XmpDescriptor;
 import com.drew.metadata.xmp.XmpDirectory;
-import com.kesoftware.imu.IMuException;
 import com.kesoftware.imu.Map;
-import com.kesoftware.imu.Module;
-import com.kesoftware.imu.ModuleFetchResult;
 import com.kesoftware.imu.Terms;
 import com.moltude.emu.upmaa.imu.Connection;
 
@@ -43,10 +39,10 @@ public class Validator {
 	 * for easier storage and retrivial.
 	 */
 	// These represent the indices of metadate values in a String []  
-	private int indexObjectNumber;
-	private int indexCreator;
-	private int indexResourceType;
-	private int indexFile;
+	private int index_identifier;
+	private int index_creator;
+	private int index_file;
+	private int index_resource_type;
 
 	/**
 	 * imageValidator Constructor
@@ -71,16 +67,15 @@ public class Validator {
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
-		
 	}
 	
 	/**
-	 * Taken from Stackoverflow post 9643228/
+	 * Taken from Stackoverflow post /9643228/
 	 * @param file
 	 * @return
 	 */
 	private boolean isImage(File file) {
-		 String mimetype= new MimetypesFileTypeMap().getContentType(file);
+		String mimetype= new MimetypesFileTypeMap().getContentType(file);
         String type = mimetype.split("/")[0];
         if(type.equals("image"))
             return true;
@@ -92,51 +87,51 @@ public class Validator {
 	 * @return the indexCreator
 	 */
 	private int getIndexCreator() {
-		return indexCreator;
+		return index_creator;
 	}
 	
 	/**
 	 * @param indexCreator the indexCreator to set
 	 */
 	private void setIndexCreator(int indexCreator) {
-		this.indexCreator = indexCreator;
+		this.index_creator = indexCreator;
 	}
 	/**
 	 * @return the indexResourceType
 	 */
 	private int getIndexResourceType() {
-		return indexResourceType;
+		return index_resource_type;
 	}
 	/**
 	 * @param indexResourceType the indexResourceType to set
 	 */
 	private void setIndexResourceType(int indexResourceType) {
-		this.indexResourceType = indexResourceType;
+		this.index_resource_type = indexResourceType;
 	}
 	/**
 	 * @return the indexObjectNumber
 	 */
-	private int getIndexObjectNumber() {
-		return indexObjectNumber;
+	private int getIdentifierIndex() {
+		return index_identifier;
 	}
 	/**
 	 * @param indexObjectNumber the indexObjectNumber to set
 	 */
 	private void setIndexObjectNumber(int indexObjectNumber) {
-		this.indexObjectNumber = indexObjectNumber;
+		this.index_identifier = indexObjectNumber;
 	}
 	/**
 	 * @return the indexFile
 	 */
 	@SuppressWarnings("unused")
 	private int getIndexFile() {
-		return indexFile;
+		return index_file;
 	}
 	/**
 	 * @param indexFile the indexFile to set
 	 */
 	private void setIndexFile(int indexFile) {
-		this.indexFile = indexFile;
+		this.index_file = indexFile;
 	}
 	/**
 	 * Validates the image file represented by FILE against catalog data in EMu.
@@ -153,24 +148,23 @@ public class Validator {
 	public int [] getCatalogIrns() {
 		// Open the image and read the data in ObjectNumber
 		try {
-			if(metadataFileExist()) {
+			if(metadataFileExists()) {
 				// see if there is a metadata file to get this image data from
-				// if there is
-				String data = findRowInMetadataTextFile(FILE.getName()); 
-				if( data != null) {
+				String metadata_row = findRowInMetadataTextFile(FILE.getName()); 
+				if( metadata_row != null) {
 					// then the metadata file exists and a row was returned
 					// now I just need to get the object numbers and return 
 					// 
-					return getCatalogIRN( getOjbectNumbersFromTextFileMetadata(data) );
+					return getTargetIRN( getIdentifierFromTextFile( metadata_row ) );
 				} else { 
 					return null;
 				}
 			}
 			// if metadata file does not exist then use the file metadata field
 			else {
-				String [] irns = getObjectNumberFromMetadata(); 
+				String [] irns = getIdentifierFromMetadata(); 
 				if( irns != null )
-					return getCatalogIRN( irns );
+					return getTargetIRN( irns );
 				else 
 					return null;
 			}
@@ -184,11 +178,11 @@ public class Validator {
 	 * @return String [] of objectNumbers gotten from text file
 	 * @return NULL if index of object number is null
 	 */
-	private String[] getOjbectNumbersFromTextFileMetadata(String data) {
-		String [] fields = data.split("\t");
-		if(this.getIndexObjectNumber() != -1)
-			return this.cleanObjectName( fields[this.getIndexObjectNumber()] );
-		else return null;
+	private String[] getIdentifierFromTextFile(String data) {
+		String [] metadata_values = data.split("\t");
+		if(getIdentifierIndex() != -1)
+			return toArray( metadata_values[getIdentifierIndex()] );
+		return null;
 	}
 
 	/**
@@ -197,7 +191,7 @@ public class Validator {
 	 * @return A cleaned String array of object numbers
 	 * @return NULL if no value in Objec Name (Title) or if metadata is unreadable 
 	 */
-	private String [] getObjectNumberFromMetadata() {
+	private String [] getIdentifierFromMetadata() {
 		String objectName = null;
 		try {
 			
@@ -223,27 +217,27 @@ public class Validator {
 //			IptcDescriptor desc = new IptcDescriptor((IptcDirectory) directory);
 //			String objectName = desc.getObjectNameDescription();
 			
-			return cleanObjectName(objectName);
+			return toArray(objectName);
 			
 		} catch (NullPointerException e1) { return null; }
 		catch (Exception e) { e.printStackTrace(); return null; }
 	}
 	
 	/**
-	 * Removes white space and converts object numbers to upper case
+	 * Converts a comma delimited string to a String array. Also removes white space and converts to upper case
 	 * 
-	 * @param objectName
-	 * @return A standardized UPMAA EMu Object Number (whitespace trimed and all caps)
+	 * @param string - A string value
+	 * @return String array with extraneous whitespace removed and all upper case
 	 */
-	private String[] cleanObjectName(String objectName) {
-		StringTokenizer strToken = new StringTokenizer(objectName.trim(),",");
-		String [] objectNames = new String[strToken.countTokens()];
+	private String[] toArray(String string) {
+		StringTokenizer strToken = new StringTokenizer(string.trim(),",");
+		String [] strings = new String[strToken.countTokens()];
 		int t = 0;
 		while(strToken.hasMoreTokens()) {
-			objectNames[t] = strToken.nextToken().toUpperCase().trim();
+			strings[t] = strToken.nextToken().toUpperCase().trim();
 			t++;
 		}		
-		return objectNames;
+		return strings;
 	}
 
 	/**
@@ -257,15 +251,13 @@ public class Validator {
 	 * @return NULL if one or more don't match
 	 * @throws Exception 
 	 */
-	private int [] getCatalogIRN(String [] objectNumbers) throws Exception {
+	private int [] getTargetIRN(String [] objectNumbers) {
 		if(objectNumbers == null) {
 			return null;
 		}
 		
 		Connection connection = new Connection("ecatalogue");
-		Module m = null;
-		
-		
+		Map [] rows = null;
 		// Build the terms to search
 		int [] irns = new int[objectNumbers.length];				
 		Terms t = new Terms();
@@ -275,20 +267,17 @@ public class Validator {
 		for(int i=0;i<objectNumbers.length;i++) {
 			objectNumber.add("CatObjectNumber", objectNumbers[i].trim());
 		}
-		try {
-			connection.connect();
-			m = connection.search(t);
-		} catch (Exception e) { connection.disconnect(); return null; }
-		
-		ModuleFetchResult r = m.fetch("start",0, -1, "irn, CatObjectNumber");
-		com.kesoftware.imu.Map []rows = r.getRows();	
-		connection.disconnect();
-		
+	
+		rows = connection.search(t, "irn,CatObjectNumber");
+	
 		// Handle invalid object #s
-		if(rows.length==0) return null;
+		if(rows == null) 
+			return null;
 		
 		/**
 		 * Rewrite this to search through the results and add the IRNs where they match
+		 * 
+		 * This is just really sloppy // fix
 		 */
 		int irn_index=0;
 
@@ -300,7 +289,9 @@ public class Validator {
 						irns[irn_index] = new Integer(rows[t1].get("irn").toString()).intValue();
 						if(irns[irn_index] == 0) {  }
 						irn_index = irn_index+1;
-					}catch(ArrayIndexOutOfBoundsException ab) { System.out.println("Inserting more IRNs than expected.  Check "+objectNumbers); }
+					} catch(ArrayIndexOutOfBoundsException ab) { 
+						System.out.println("Inserting more IRNs than expected.  Check "+objectNumbers); 
+					}
 				}
 			}
 		}
@@ -318,7 +309,7 @@ public class Validator {
 	 * @return TRUE if metadata.txt exists in the directory currently being processed
 	 * 			FALSE if it does not exist
 	 */
-	private boolean metadataFileExist() {
+	private boolean metadataFileExists() {
 		File dir = new File(FILE.getParent());
 		List <String> filelist = Arrays.asList(dir.list()); 
 		if(filelist.contains("metadata.txt")) {
@@ -332,8 +323,16 @@ public class Validator {
 	/**
 	 * Reads the first line from metadata.txt and determines the indices of the 
 	 * columns (relative positions) and sets them.  These indices are used to create
-	 * auxMetadata
-	 * 
+	 * auxMetadata<br>
+	 * <br>
+	 * The column headers are:<br>
+	 * <ul>
+	 * <li>object - the emu identifier for the target recor. UPMAA uses CatObjectNumber</li>
+	 * <li>file - the file name</li>
+	 * <li>resource - the resource type. This may be UPMAA specific, it controls whether a multimedia record is shown online</li>
+	 * <li>creator - the creator field for the multimedia record</li>
+	 * </ul>
+	 * @throws IOException 
 	 */
 	private void getColumnIndices() {
 		BufferedReader br = null;
@@ -351,12 +350,13 @@ public class Validator {
 				else if(columns[t].toLowerCase().contains("creator") ) 		{ this.setIndexCreator(t); }
 			}
 			
-		}catch (FileNotFoundException e) {e.printStackTrace(); } 
-		 catch (IOException e) {
-			try {	br.close();
-			} catch (IOException e1) { e1.printStackTrace(); }
-			e.printStackTrace();
-		} 
+		} catch (IOException e) {
+		} finally {
+			try {
+				br.close();
+			} catch (IOException e) {
+			}
+		}
 		
 	}
 
@@ -385,14 +385,8 @@ public class Validator {
 			br.close();
 			return null;
 			
-		} catch (FileNotFoundException e) {
-			e.printStackTrace();
-			return null;
-			
-		} catch (IOException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-			return null;
+		} catch (Exception e) {
+			return null;	
 		}
 	}
 	
@@ -411,7 +405,7 @@ public class Validator {
 	    String re6="( )";	// White Space 2
 	    
 	    
-		if(this.metadataFileExist()) {
+		if(this.metadataFileExists()) {
 			String [] data = this.findRowInMetadataTextFile(FILE.getName()).split("\t");
 			Map aux = new Map();
 			
@@ -432,34 +426,21 @@ public class Validator {
 	 * already exists in EMu.  This is only a presumptive positive
 	 * and will require a human to check both images.
 	 * 
-	 * @return
+	 * @return True if there is atleast one record in emultimedia with the smae file name (excluding file extension)<br>
+	 * False if there is no record in emultimedia with the smae file name
+	 * 
 	 */
-	public boolean checkFileNames() {
+	public boolean isIdentifierUnique() {
 		Connection connection = new Connection("emultimedia");
 		Terms terms = new Terms();
 		terms.add("MulIdentifier", FILE.getName().substring(0, FILE.getName().indexOf(".") ));
-		connection.connect();
-		Module mod = connection.search(terms);
-		ModuleFetchResult results = null;
-		try {
-			results = mod.fetch("start", 0, -1);
-			connection.disconnect();
-		} catch (IMuException e) {	
-			e.printStackTrace(); 
-			connection.disconnect();	
-		}
-		
-		Map [] map = results.getRows();
-		if(map.length != 0) {
-			// If there are multimedia images that match(ish) the 
-			// image to be uploaded file name then return presumptive true
-			return true;
-		}
-		return false;
+		return connection.anyMatchingResults(terms);
 	}
 	
 	/**
+	 * 
 	 * PRINT METHODS
+	 * 
 	 */
 	
 	/**

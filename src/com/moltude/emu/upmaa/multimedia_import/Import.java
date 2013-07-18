@@ -6,17 +6,18 @@ import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.ArrayList;
 import java.util.Properties;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+
+import org.springframework.util.StringUtils;
+
 import com.kesoftware.imu.IMuException;
 import com.kesoftware.imu.Map;
-import com.kesoftware.imu.Module;
-import com.kesoftware.imu.ModuleFetchResult;
 import com.kesoftware.imu.Terms;
 import com.moltude.emu.upmaa.imu.Connection;
-
 
 public class Import {
 	// Holds the image metadata to be added to the emultimedia record
@@ -77,31 +78,31 @@ public class Import {
 	}
 	
 	/**
-	 * Called on to upload and link the image to records in the ecatalogue module. 
-	 * 
+	 * Called on to upload and link the image to records in the target module<br> 
+	 * <br>
 	 * @param file
 	 * @param catIrns
-	 * @return int values indicating error or success
-	 *		1: 	If image was successfully uploaded and linked to all catalog records 
-	 *		0:	If upload success but failed to attach multimedia record to one or more catalog records
+	 * @return int values indicating error or success<br>
+	 *		1: 	If image was successfully uploaded and linked to all catalog records<br> 
+	 *		0:	If upload success but failed to attach multimedia record to one or more catalog records<br>
 	 *	   -1: 	If unable to upload image, because no image was uploaded there was also no attempt to link it 
-	 *			to any catalog records
+	 *			to any catalog records<br>
 	 */
 	public int doImport(File file, int[] catIrns) {
 		// TODO finish writing uploadImageToEmu pending response from KE
-		long imageIrn = -1;
-		imageIrn = uploadImage(file, getObjectNumbers(catIrns) + ".  "+ imageMetadata.get("MulDescription") );
+		long emultimedia_irn = -1;
+		emultimedia_irn = uploadImage(file, getObjectNumbers(catIrns) + ".  "+ imageMetadata.get("MulDescription") );
 		// If failed to upload image to EMu then return 		
-		if(imageIrn == -1) {
+		if(emultimedia_irn == -1) {
 			return -1;
 		}		
 		// If image upload success then attach the multimedia record to catalog records
 		else {
 			boolean attachedToAllobjects = true;
 	
-			for(int t=0;t<catIrns.length; t++) {
+			for(int target_irn : catIrns) {
 				// add this irn to the mulRef column of the catalog record
-				if( attachMultimediaToCatalog(imageIrn, catIrns[t], getCatalogType(catIrns.length) ) == false ) {
+				if( attachMultimedia(emultimedia_irn, target_irn, "ecatalogue", getCatalogType(catIrns.length) ) == false ) {
 					// if the script was unable to link the image to one of the catalog records then 
 					// returns false, then log the one it failed on
 					attachedToAllobjects = false;
@@ -121,34 +122,24 @@ public class Import {
 	/**
 	 * Add the supplied image to the first position in the multimediaRef array<br>
 	 * 
-	 * @param imageIrn
+	 * @param emultimedia_irn
 	 * @param catType 
 	 * @param i
 	 * @return 
 	 */
-	private boolean attachMultimediaToCatalog(long imageIrn, long cat, String catType) {
+	private boolean attachMultimedia(long emultimedia_irn, long target_irn, String target_module, String catType) {
 		Map updates = new Map();
-		Connection con = new Connection("ecatalogue");
+		Connection con = new Connection(target_module);
 		
 		con.connect();
-		Module m = con.searchIRN(cat);
-		ModuleFetchResult r;
-		try {
-			r = m.fetch("start",0, 1, COLUMNS);
-		} catch (IMuException e) {
-			e.printStackTrace();
-			return false;
-		}
-		Map []rows = r.getRows();
-		con.disconnect();
+		Map target_record = con.search(target_irn, COLUMNS);
 		
-		// If zero catalog records were returned
-		if(rows.length == 0 ) 
+		// If no target record was found
+		if(target_record == null ) 
 			return false;
 		
-		Map row = rows[0];
 		// Put this image in the first position
-		Map []image = row.getMaps("MulMultiMediaRef_tab");
+		Map []image = target_record.getMaps("MulMultiMediaRef_tab");
 		// IRN
 		String [] existingIRNs = new String [image.length];
 		// Notes
@@ -162,14 +153,14 @@ public class Import {
 			existingNotes[t] = image[t].getString("MulMultimediaNotes0" );
 		}
 		// Updates to the multimedia module
-		 updates.put("MulMultiMediaRef_tab", addArray(existingIRNs, new String [] { Long.toString(imageIrn) } ));
+		 updates.put("MulMultiMediaRef_tab", addArray(existingIRNs, new String [] { Long.toString(emultimedia_irn) } ));
 		 updates.put("MulMultimediaNotes0", addArray( existingNotes, new String[] { "" /* TODO standard note text */ } ));
 		 updates.put("MulMultimediaType_tab", addArray( existingType, new String[] { catType }) );
 		
 		 // Pass updates
 		con.connect();
 		try {
-			con.updateRecord(cat, updates, null);
+			con.updateRecord(target_irn, updates, null);
 		} catch (IMuException e) {
 		}
 		con.disconnect();
@@ -250,45 +241,31 @@ public class Import {
 	 * <ObjectA>, <ObjectB> and <ObjectC><br>
 	 * E115, L-606-125 and C255<br>
 	 * 
-	 * @param catIrns
-	 * @return String of object numbers in the photo; null if exception thrown
+	 * @param target_irns
+	 * @return String of object numbers in the photo
 	 */
-	private String getObjectNumbers(int[] catIrns) {
-		String objectNumbers = "";
+	private String getObjectNumbers(int[] target_irns) {
 		Connection con = new Connection("ecatalogue");
 		Terms term = new Terms();
 		Terms irns = term.addOr();
-		for(int t=0;t<catIrns.length; t++) {
-			irns.add("irn", Integer.toString(catIrns[t]) );
+		
+		for(int t=0;t<target_irns.length; t++) {
+			irns.add("irn", Integer.toString(target_irns[t]) );
 		}
 		
 		con.connect();
-		Module m = con.search(term);
-		try {
-			ModuleFetchResult r = m.fetch("start", 0, -1, "CatObjectNumber");
-			Map [] maps = r.getRows();
-			con.disconnect();
-			
-			for(int t=0;t<maps.length;t++) {
-				Map i = maps[t];
-				if(maps.length == 1) {
-					objectNumbers = objectNumbers.concat(i.getString("CatObjectNumber"));
-				}
-				else if(maps.length>1 && t<maps.length-1) {
-					objectNumbers = objectNumbers.concat(i.getString("CatObjectNumber")+", ");
-				}
-				else if(maps.length>1 && t==maps.length-1) {
-					// Remove the last ', '
-					objectNumbers = objectNumbers.substring(0, objectNumbers.lastIndexOf(", "));
-					objectNumbers = objectNumbers.concat(" and "+i.getString("CatObjectNumber"));
-				}	
-			}
-			
-			return objectNumbers;
-		} catch (IMuException e) { 
-			con.disconnect(); 
-			return null;	
+		Map[] maps = con.search(term,"CatObjectNumber");
+		
+		ArrayList<String> object_numbers = new ArrayList<String>();
+		
+		for(Map map : maps) {
+			object_numbers.add(map.getString("CatObjectNumber"));
 		}
+		
+		StringBuilder sb = new StringBuilder(StringUtils.arrayToCommaDelimitedString(object_numbers.toArray()));
+		sb.replace(sb.lastIndexOf(","), sb.lastIndexOf(",")+1, "and");
+		
+		return sb.toString();
 	}
 	
 	/**
