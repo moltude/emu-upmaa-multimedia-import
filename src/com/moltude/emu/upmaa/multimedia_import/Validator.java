@@ -145,7 +145,7 @@ public class Validator {
 	 * @return int [] If FILE passes validation 
 	 * @return NULL if FILE does not pass validation
 	 */
-	public int [] getCatalogIrns() {
+	public int [] getTargetIrns() {
 		// Open the image and read the data in ObjectNumber
 		try {
 			if(metadataFileExists()) {
@@ -426,15 +426,25 @@ public class Validator {
 	 * already exists in EMu.  This is only a presumptive positive
 	 * and will require a human to check both images.
 	 * 
-	 * @return True if there is atleast one record in emultimedia with the smae file name (excluding file extension)<br>
-	 * False if there is no record in emultimedia with the smae file name
+	 * @return False if there is atleast one record in emultimedia with the smae file name (excluding file extension)<br>
+	 * True if there is no record in emultimedia with the smae file name
 	 * 
 	 */
 	public boolean isIdentifierUnique() {
 		Connection connection = new Connection("emultimedia");
 		Terms terms = new Terms();
 		terms.add("MulIdentifier", FILE.getName().substring(0, FILE.getName().indexOf(".") ));
-		return connection.anyMatchingResults(terms);
+		boolean results = connection.anyMatchingResults(terms);
+		
+		if( results ) {
+			// TODO better logging 
+			System.out.println("WARNING: Possible duplicate image exists for file "+FILE.getName() + 
+					". Search for  " + FILE.getName().substring(0, FILE.getName().lastIndexOf(".")) + 
+					" in the 'Identifier' field in the Multimedia module\r\n");
+			return false;
+		} 
+		
+		return true;
 	}
 	
 	/**

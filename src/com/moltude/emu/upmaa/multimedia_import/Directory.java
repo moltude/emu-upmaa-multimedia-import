@@ -13,11 +13,16 @@ package com.moltude.emu.upmaa.multimedia_import;
 
 import java.io.File;
 import java.io.FileFilter;
+import java.io.FileNotFoundException;
+import java.io.IOException;
+import java.io.InputStream;
+import java.util.Iterator;
+import java.util.Properties;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.joda.time.DateTime;
-
+import org.springframework.util.StringUtils;
 
 import com.kesoftware.imu.Map;
 
@@ -34,14 +39,17 @@ public class Directory {
 	//	private LogFileWriter errorLogFile;
 	//	private LogFileWriter logFile;
 	
-	// Files is a list of all of the image files in the IMAGE_DIRECTORY
+	// Files is a list of all of the files in the directory to process
 	private File [] FILES;
+	
+	// Settings
+	private Map settings;
 	
 	/**
 	 * Default constructor. 
 	 */
 	public Directory() {
-		
+		settings = new Map();
 	}
 	
 	/**
@@ -49,9 +57,106 @@ public class Directory {
 	 * @param dir - The directory to process 
 	 */
 	public Directory(String dir) {
+		settings = new Map();
 		setLogFiles(dir);
 	}
+	
+	/**
+	 * Runs the import using the default configurations in default.properties
+	 */
+	public void importFiles( ) {
+		// get settings from default.properties file
+		importFiles("default.properties");
+	}
+	
+	/**
+	 * 
+	 * @param properties_file
+	 */
+	public void importFiles(String properties_file) {
+		loadSettings(properties_file);
+		
+		// do the import
+		doImport();
+	}
 
+	/**
+	 * Uses properties set in the map
+	 * 
+	 * @param _settings
+	 */
+	public void importFiles ( Map _settings ) {
+		settings = _settings;
+		
+		// do the import
+		doImport();
+	}
+			
+
+	/**
+	 * Imports all of the images in the specfied directory 
+	 * @param directory
+	 * @param genericMetadata
+	 */
+	private void doImport( ) {
+		String directory = settings.getString("directory");
+		
+		if(directory == null || !(new File(directory).exists()) ) {
+			logger.fatal("Could not locate import directory. Exiting!");
+			System.exit(-1);
+		}
+		setLogFiles( directory );
+		setDirectory( directory );
+		readDirectory( settings );
+	}
+	
+	/**
+	 * 
+	 * @param properties_file
+	 */
+	private void loadSettings(String properties_file) {
+		if(settings == null)
+			settings = new Map();
+		
+		Map metadata = new Map();
+		Properties properties = new Properties();
+		InputStream is = null;
+		try {
+			is = this.getClass().getClassLoader().getResourceAsStream(properties_file);
+			
+			if(is != null) {
+				properties.load(is); 
+				is.close();
+			} else {
+				System.out.println("Could not load properties");
+				System.exit(0);
+			}
+			
+			Iterator<Object> iterator = properties.keySet().iterator();
+			
+			while(iterator.hasNext()) {
+				String key = (String) iterator.next();
+				String value = properties.getProperty(key);
+				// if the setting is metadata then put it in the metadata map
+				if(key.startsWith("metadata.")) {
+					if(key.endsWith("_tab"))
+						metadata.put(key.replace("metadata.", ""), StringUtils.delimitedListToStringArray(value, "|"));
+					else
+						metadata.put(key.replace("metadata.", ""), value);
+				} else {
+					settings.put(key, value);
+				}
+			}
+			
+			settings.put("metadata",metadata);
+			
+		} catch (FileNotFoundException fnfe) {
+			fnfe.printStackTrace();
+		} catch (IOException ioe) {
+			ioe.printStackTrace();
+		}
+	}
+	
 	/**
 	 * 
 	 * @param dir - Directory to process
@@ -79,9 +184,8 @@ public class Directory {
 	 * 	Creates a ./logs/ directory within the processesing directory and creates log files for 
 	 * @param dir
 	 */
-	public void setLogFiles(String dir) {
+	private void setLogFiles(String dir) {
 		dir = dir + java.io.File.separator + "logs" + java.io.File.separator + getDateFolder();
-		
 		
 //		logFile = new LogFileWriter(new File(dir + java.io.File.separator + "emu-multimedia-import.txt"));
 //		errorLogFile = new LogFileWriter(new File(dir + java.io.File.separator + "emu-multimedia-import-error_log.txt"));
@@ -98,28 +202,14 @@ public class Directory {
 	}
 	
 	/**
-	 * Imports all of the images in the specfied directory 
-	 * @param directory
-	 * @param genericMetadata
-	 */
-	public void doImport(String directory, Map genericMetadata, Map settings) {
-		if(directory == null || !(new File(directory).exists()) ) {
-			logger.fatal("Could not locate import directory. Exiting!");
-			System.exit(-1);
-		}
-		setLogFiles( directory );
-		setDirectory( directory );
-		// Put the stock image metadata in all images and do not resize the images provided
-		readDirectory(genericMetadata, settings.getBoolean("dup_check"));
-	}
-	
-	/**
 	 * Read the image directory and process image if needed
-	 * @param stockImageMetadata
+	 * @param settings
 	 * @param resizeImage
 	 */
-	private void readDirectory(Map stockImageMetadata, boolean checkForDuplicateImage) {
+	private void readDirectory(Map settings) {
 		try {
+			Map metadata = settings.getMap("metadata");
+			
 			if(!filesToImportExist()) {
 				// if there are no images to import
 				logger.warn("There are no files to improt");
@@ -127,66 +217,59 @@ public class Directory {
 			}
 			// For every file in the directory
 			for(File file : FILES ) {
-				boolean addImage = true;
 				// imageValidator take the file and compares the file's metadata
 				// to data in EMu
 				Validator validator = new Validator(file);
 				// Checks EMu for an existing image with a similar file name (to cut down on duplicate images).
-				if( checkForDuplicateImage ) {
-					if ( validator.isIdentifierUnique() ) {
-						logErrorMessage("WARNING: Possible duplicate image exists for file "+file.getName() + 
-								". Search for  " + file.getName().substring(0, file.getName().lastIndexOf(".")) + 
-								" in the 'Identifier' field in the Multimedia module\r\n");
-						moveFile(file, error_directory);
-						addImage = false;
-					}
-				} 
+				if( settings.getString("unique_identifier").equalsIgnoreCase("true") && validator.isIdentifierUnique() ) {
+					moveFile(file, error_directory);
+					continue;
+				}
 
-				if( addImage ){
-					int [] catIrns = validator.getCatalogIrns();
-					// If all of the object numbers in the metadata match data in EMu 
-					if(catIrns != null) {
-						stockImageMetadata.putAll( validator.getAuxMetadata()   );
-						stockImageMetadata.putAll( validator.getImageMetadata() );
-						createEMuRecords(catIrns, stockImageMetadata, file);
-					} else { 	
-						// Image metadata does not match EMu data
-						logErrorMessage("Could not find matching catalog record(s) in EMu for " + 
-								validator.getObjectName() + " | File "+file.getName()+" moved to Error folder\r\n");
-						moveFile(file, error_directory);
-					} // end else 
-				} // end else 
+				int [] target_irns = validator.getTargetIrns();
+				// If the target irns could not all be resolved then log error and continue
+				if(target_irns == null) {
+					// Image metadata does not match EMu data
+					logErrorMessage("Could not find matching catalog record(s) in EMu for " + 
+							validator.getObjectName() + " | File "+file.getName()+" moved to Error folder\r\n");
+					moveFile(file, error_directory);
+					continue;
+				}
+				// If all of the object numbers in the metadata match data in EMu 
+				// Get metadata from metadata.txt (if exists)
+				metadata.putAll( validator.getAuxMetadata() );
+				// Get metadata from file (if present)
+				metadata.putAll( validator.getImageMetadata() );
+				// create Emu record
+				createMultimediaRecord(target_irns, metadata, file);
+				
 			} // end for loop
 		} catch (Exception e ) { 
 			// TODO log the exception 
+			e.printStackTrace();
 		}
 	}
 
 	
 	/**
-	 * Uploads image to EMu and links it to catalog records. If required the ImageImporter
-	 * will resize the image
+	 * Uploads image to EMu and links it to catalog records. 
 	 *  
-	 * @param catIrns 
-	 * @param stockImageMetadata
+	 * @param target_irns - irns of target records to link the new emultimedia to
+	 * @param metadata
 	 * @param file 
 	 */
-	private void createEMuRecords(int[] catIrns, Map stockImageMetadata, File file) {
+	private void createMultimediaRecord(int[] target_irns, Map metadata, File file) {
 		try {
 			// import and link the images
 			
 			// TODO make this smoother
-			Import impoter = new Import(stockImageMetadata);
+			Import impoter = new Import(metadata);
 			// Try to upload and link the image to all catalog records
-			int import_status = impoter.doImport(file, catIrns);
+			int import_status = impoter.doImport(file, target_irns);
 			// If importAndLinkImage returns 1 then it was sucessful for image and linking to all objects
 			if(import_status == 1) { 
 				// 	on success move the image file to another 'success directory'		
 				moveFile(file, success_directory);
-				
-				// TODO 
-				// Find some other way to log each object + image
-//				logger.logObjects(catIrns, file.getName());
 			}
 			// If the image couldn't be linked to all catalog records then log it but move it to success since the image has been added to EMu
 			else if (import_status == 0) {
@@ -200,6 +283,7 @@ public class Directory {
 			}
 		} catch (Exception e) { 
 			logger.error(e.getMessage());
+			e.printStackTrace();
 		} 
 	}
 

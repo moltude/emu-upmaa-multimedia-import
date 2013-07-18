@@ -47,7 +47,7 @@ public class Import {
 			imageMetadata = new Map();
 		}
 		
-		loadProperties();
+		// loadProperties();
 	}
 	
 	/**
@@ -200,14 +200,13 @@ public class Import {
 			// Image description
 			imageMetadata.put("MulDescription", "Photograph of "+description);
 			// Image data
-			resource.put("name", file.getName() );		
+			resource.put("name", file.getName() );	
+			
 			fs = new FileInputStream(file); // File object pointing at ./sample_images/image.jpeg
 			resource.put("data", fs);
 			imageMetadata.put( "master", resource );
 			try { 
-				con.connect();
 				con.updateRecord(irn, imageMetadata, null);
-				con.disconnect();
 			} catch(IMuException e) {
 				// If an imuex was thrown then there was probably some kind of error in creating the 
 				// record and it should be deleted
@@ -263,8 +262,9 @@ public class Import {
 		}
 		
 		StringBuilder sb = new StringBuilder(StringUtils.arrayToCommaDelimitedString(object_numbers.toArray()));
-		sb.replace(sb.lastIndexOf(","), sb.lastIndexOf(",")+1, "and");
 		
+		if(sb.indexOf(",") != -1)
+			sb.replace(sb.lastIndexOf(","), sb.lastIndexOf(",")+1, "and");
 		return sb.toString();
 	}
 	
