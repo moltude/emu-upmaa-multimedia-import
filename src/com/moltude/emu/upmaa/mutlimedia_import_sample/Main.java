@@ -12,8 +12,12 @@ public class Main {
 
 	public static void main(String[] args) {
 		Directory directory = new Directory();
-
+		
+		// uses the default.properties file in ./conf/
 		directory.importFiles();
+		
+		// To use another config file pass the path to the method		
+		// directory.importFiles("photo_studio.properties");
 	}
 
 }
