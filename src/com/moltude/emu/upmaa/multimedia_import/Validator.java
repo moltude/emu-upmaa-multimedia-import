@@ -141,11 +141,13 @@ public class Validator {
 	 * In eitehr case, if the image passes validation the IRNs of the catalog records
 	 * thie image should be linked to are returned in an int [].  If it does not 
 	 * pass validation then validateImages() returns NULL<br>
+	 * @param target_id 
+	 * @param target_module 
 	 *   
 	 * @return int [] If FILE passes validation 
 	 * @return NULL if FILE does not pass validation
 	 */
-	public int [] getTargetIrns() {
+	public long [] getTargetIrns(String target_module, String target_id) {
 		// Open the image and read the data in ObjectNumber
 		try {
 			if(metadataFileExists()) {
@@ -155,7 +157,7 @@ public class Validator {
 					// then the metadata file exists and a row was returned
 					// now I just need to get the object numbers and return 
 					// 
-					return getTargetIRN( getIdentifierFromTextFile( metadata_row ) );
+					return getTargetIRN( getIdentifierFromTextFile( metadata_row ), target_module, target_id );
 				} else { 
 					return null;
 				}
@@ -164,7 +166,7 @@ public class Validator {
 			else {
 				String [] irns = getIdentifierFromMetadata(); 
 				if( irns != null )
-					return getTargetIRN( irns );
+					return getTargetIRN( irns, target_module, target_id );
 				else 
 					return null;
 			}
@@ -246,29 +248,29 @@ public class Validator {
 	 * and integer array of all of the IRNs. If it is unable to match one or more of the objectNumbers
 	 * then it returns NULL<br>
 	 * 
-	 * @param objectNumbers
+	 * @param identifiers
 	 * @return int[] of IRNs if all objectNumbers match 
 	 * @return NULL if one or more don't match
 	 * @throws Exception 
 	 */
-	private int [] getTargetIRN(String [] objectNumbers) {
-		if(objectNumbers == null) {
+	private long [] getTargetIRN(String [] identifiers, String target_module, String target_id) {
+		if(identifiers == null) {
 			return null;
 		}
 		
-		Connection connection = new Connection("ecatalogue");
+		Connection connection = new Connection(target_module);
 		Map [] rows = null;
 		// Build the terms to search
-		int [] irns = new int[objectNumbers.length];				
+		long [] irns = new long[identifiers.length];				
 		Terms t = new Terms();
 		t.addOr();
 		Terms objectNumber = t.addOr();
 		
-		for(int i=0;i<objectNumbers.length;i++) {
-			objectNumber.add("CatObjectNumber", objectNumbers[i].trim());
+		for(int i=0;i<identifiers.length;i++) {
+			objectNumber.add(target_id, identifiers[i].trim());
 		}
 	
-		rows = connection.search(t, "irn,CatObjectNumber");
+		rows = connection.search(t, "irn,"+target_id);
 	
 		// Handle invalid object #s
 		if(rows == null) 
@@ -281,16 +283,17 @@ public class Validator {
 		 */
 		int irn_index=0;
 
+		// good lord this is bad 
 		for(int t1=0;t1<rows.length;t1++) {
-			for(int i=0;i<objectNumbers.length; i++) {
+			for(int i=0;i<identifiers.length; i++) {
 				// Handles the loose object number match
-				if(rows[t1].getString("CatObjectNumber").equalsIgnoreCase(objectNumbers[i].trim()) ) {
+				if(rows[t1].getString(target_id).equalsIgnoreCase(identifiers[i].trim()) ) {
 					try {
 						irns[irn_index] = new Integer(rows[t1].get("irn").toString()).intValue();
 						if(irns[irn_index] == 0) {  }
 						irn_index = irn_index+1;
 					} catch(ArrayIndexOutOfBoundsException ab) { 
-						System.out.println("Inserting more IRNs than expected.  Check "+objectNumbers); 
+						System.out.println("Inserting more IRNs than expected.  Check "+identifiers); 
 					}
 				}
 			}
@@ -298,7 +301,7 @@ public class Validator {
 		/**
 		 * If the index and the number of catalog records match thens alls well if not something bad happended and it returns null
 		 */
-		if(irn_index == objectNumbers.length)
+		if(irn_index == identifiers.length)
 			return irns;
 		else return null;
 	}

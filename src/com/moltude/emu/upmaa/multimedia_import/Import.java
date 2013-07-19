@@ -11,7 +11,6 @@ import java.util.Properties;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-
 import org.springframework.util.StringUtils;
 
 import com.kesoftware.imu.IMuException;
@@ -81,17 +80,19 @@ public class Import {
 	 * Called on to upload and link the image to records in the target module<br> 
 	 * <br>
 	 * @param file
-	 * @param catIrns
+	 * @param target_irns
+	 * @param target_id 
+	 * @param target_module 
 	 * @return int values indicating error or success<br>
 	 *		1: 	If image was successfully uploaded and linked to all catalog records<br> 
 	 *		0:	If upload success but failed to attach multimedia record to one or more catalog records<br>
 	 *	   -1: 	If unable to upload image, because no image was uploaded there was also no attempt to link it 
 	 *			to any catalog records<br>
 	 */
-	public int doImport(File file, int[] catIrns) {
+	public int doImport(File file, long [] target_irns, String target_module, String target_id) {
 		// TODO finish writing uploadImageToEmu pending response from KE
 		long emultimedia_irn = -1;
-		emultimedia_irn = uploadImage(file, getObjectNumbers(catIrns) + ".  "+ imageMetadata.get("MulDescription") );
+		emultimedia_irn = uploadImage(file, getTargetIdentifiers(target_irns, target_module, target_id) + ".  "+ imageMetadata.get("MulDescription") );
 		// If failed to upload image to EMu then return 		
 		if(emultimedia_irn == -1) {
 			return -1;
@@ -100,9 +101,9 @@ public class Import {
 		else {
 			boolean attachedToAllobjects = true;
 	
-			for(int target_irn : catIrns) {
+			for(long target_irn : target_irns) {
 				// add this irn to the mulRef column of the catalog record
-				if( attachMultimedia(emultimedia_irn, target_irn, "ecatalogue", getCatalogType(catIrns.length) ) == false ) {
+				if( attachMultimedia(emultimedia_irn, target_irn, target_module, getCatalogType(target_irns.length) ) == false ) {
 					// if the script was unable to link the image to one of the catalog records then 
 					// returns false, then log the one it failed on
 					attachedToAllobjects = false;
@@ -241,24 +242,25 @@ public class Import {
 	 * E115, L-606-125 and C255<br>
 	 * 
 	 * @param target_irns
+	 * @param target_id 
 	 * @return String of object numbers in the photo
 	 */
-	private String getObjectNumbers(int[] target_irns) {
-		Connection con = new Connection("ecatalogue");
+	private String getTargetIdentifiers(long[] target_irns, String target_module, String target_id) {
+		Connection con = new Connection(target_module);
 		Terms term = new Terms();
 		Terms irns = term.addOr();
 		
 		for(int t=0;t<target_irns.length; t++) {
-			irns.add("irn", Integer.toString(target_irns[t]) );
+			irns.add("irn", Long.toString(target_irns[t]) );
 		}
 		
 		con.connect();
-		Map[] maps = con.search(term,"CatObjectNumber");
+		Map[] maps = con.search(term,target_id);
 		
 		ArrayList<String> object_numbers = new ArrayList<String>();
 		
 		for(Map map : maps) {
-			object_numbers.add(map.getString("CatObjectNumber"));
+			object_numbers.add(map.getString(target_id));
 		}
 		
 		StringBuilder sb = new StringBuilder(StringUtils.arrayToCommaDelimitedString(object_numbers.toArray()));

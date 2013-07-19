@@ -46,71 +46,51 @@ public class Directory {
 	private Map settings;
 	
 	/**
-	 * Default constructor. 
+	 * Loads the default properties file 
 	 */
 	public Directory() {
-		settings = new Map();
+		loadSettings("default.properties");
 	}
 	
 	/**
+	 * Load settings from the specified properties file. See default.properties_sample for an example
+	 * properties file 
 	 * 
-	 * @param dir - The directory to process 
+	 * @param properties_file
 	 */
-	public Directory(String dir) {
-		settings = new Map();
-		setLogFiles(dir);
-	}
-	
-	/**
-	 * Runs the import using the default configurations in default.properties
-	 */
-	public void importFiles( ) {
-		// get settings from default.properties file
-		importFiles("default.properties");
+	public Directory(String properties_file) {
+		loadSettings(properties_file);
 	}
 	
 	/**
 	 * 
 	 * @param properties_file
 	 */
-	public void importFiles(String properties_file) {
-		loadSettings(properties_file);
-		
-		// do the import
-		doImport();
-	}
+	public void importFiles() {
+		if(filesToImportExist())
+			doImport();
+	}		
 
 	/**
-	 * Uses properties set in the map
+	 * Starts the ball running for the import // Set log files, status directories 
+	 * Validates the provided directory
 	 * 
-	 * @param _settings
-	 */
-	public void importFiles ( Map _settings ) {
-		settings = _settings;
-		
-		// do the import
-		doImport();
-	}
-			
-
-	/**
-	 * Imports all of the images in the specfied directory 
-	 * @param directory
-	 * @param genericMetadata
 	 */
 	private void doImport( ) {
+		// Get directory from *.properties file
 		String directory = settings.getString("directory");
 		
 		if(directory == null || !(new File(directory).exists()) ) {
 			logger.fatal("Could not locate import directory. Exiting!");
 			System.exit(-1);
 		}
-		setLogFiles( directory );
-		setDirectory( directory );
+		
+		createProcessingFolders( directory );
 		readDirectory( settings );
 	}
 	
 	/**
+	 * Load the settings for to process the images for the .properties file
 	 * 
 	 * @param properties_file
 	 */
@@ -139,10 +119,12 @@ public class Directory {
 				String value = properties.getProperty(key);
 				// if the setting is metadata then put it in the metadata map
 				if(key.startsWith("metadata.")) {
-					if(key.endsWith("_tab"))
+					// If mapping to multi-valued field convert String to String array
+					if(key.endsWith("_tab")) {
 						metadata.put(key.replace("metadata.", ""), StringUtils.delimitedListToStringArray(value, "|"));
-					else
+					} else {
 						metadata.put(key.replace("metadata.", ""), value);
+					}
 				} else {
 					settings.put(key, value);
 				}
@@ -158,10 +140,18 @@ public class Directory {
 	}
 	
 	/**
-	 * 
+	 * Creates the ./Error and ./Success folders within the directory to process. These folders also have dated sub-folders where the images will be moved.  This is confgiured to
+	 * support applications that are run on a schedule.<br><br>
+	 * --dir<br>
+	 * ----Error<br>
+	 * ------yyyy.MM.dd<br>
+	 * ----Success<br>
+	 * ------yyyy.MM.dd<br>
+	 * ----logs<br>
+	 * ------yyyy.MM.dd<br><br>
 	 * @param dir - Directory to process
 	 */
-	private void setDirectory(String dir) {
+	private void createProcessingFolders(String dir) {
 		String date_folder = getDateFolder();
 		
 		directory 			= new File(dir);
@@ -174,24 +164,17 @@ public class Directory {
 		if(!success_directory.exists())
 			success_directory.mkdirs();
 		
+		// log files 
+		// dir = dir + java.io.File.separator + "logs" + java.io.File.separator + getDateFolder();	
+		// logFile = new LogFileWriter(new File(dir + java.io.File.separator + "emu-multimedia-import.txt"));
+		// errorLogFile = new LogFileWriter(new File(dir + java.io.File.separator + "emu-multimedia-import-error_log.txt"));
+		// logger = new ImageHarvesterLogger(logFile, dir);
+
 		// List of the image files 
 		// TODO change this so that it doesn't only include image files 
 		FILES = directory.listFiles(new ImageFileFilter());
 	}
-	
-
-	/**
-	 * 	Creates a ./logs/ directory within the processesing directory and creates log files for 
-	 * @param dir
-	 */
-	private void setLogFiles(String dir) {
-		dir = dir + java.io.File.separator + "logs" + java.io.File.separator + getDateFolder();
 		
-//		logFile = new LogFileWriter(new File(dir + java.io.File.separator + "emu-multimedia-import.txt"));
-//		errorLogFile = new LogFileWriter(new File(dir + java.io.File.separator + "emu-multimedia-import-error_log.txt"));
-		// logger = new ImageHarvesterLogger(logFile, dir);
-	}
-	
 	/**
 	 * Get the current date as yyyy.MM.dd
 	 * 
@@ -209,13 +192,9 @@ public class Directory {
 	private void readDirectory(Map settings) {
 		try {
 			Map metadata = settings.getMap("metadata");
+			String target_module = settings.getString("target_module");
+			String target_id = settings.getString("target_id");
 			
-			if(!filesToImportExist()) {
-				// if there are no images to import
-				logger.warn("There are no files to improt");
-				return;
-			}
-			// For every file in the directory
 			for(File file : FILES ) {
 				// imageValidator take the file and compares the file's metadata
 				// to data in EMu
@@ -226,7 +205,7 @@ public class Directory {
 					continue;
 				}
 
-				int [] target_irns = validator.getTargetIrns();
+				long [] target_irns = validator.getTargetIrns(target_module, target_id);
 				// If the target irns could not all be resolved then log error and continue
 				if(target_irns == null) {
 					// Image metadata does not match EMu data
@@ -258,14 +237,14 @@ public class Directory {
 	 * @param metadata
 	 * @param file 
 	 */
-	private void createMultimediaRecord(int[] target_irns, Map metadata, File file) {
+	private void createMultimediaRecord(long[] target_irns, Map metadata, File file) {
+		String target_module = settings.getString("target_module");
+		String target_id = settings.getString("target_id");
 		try {
-			// import and link the images
-			
 			// TODO make this smoother
 			Import impoter = new Import(metadata);
 			// Try to upload and link the image to all catalog records
-			int import_status = impoter.doImport(file, target_irns);
+			int import_status = impoter.doImport(file, target_irns, target_module, target_id);
 			// If importAndLinkImage returns 1 then it was sucessful for image and linking to all objects
 			if(import_status == 1) { 
 				// 	on success move the image file to another 'success directory'		
