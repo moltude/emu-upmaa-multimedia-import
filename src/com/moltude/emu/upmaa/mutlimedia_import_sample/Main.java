@@ -11,13 +11,14 @@ import com.moltude.emu.upmaa.multimedia_import.Directory;
 public class Main {
 
 	public static void main(String[] args) {
-		Directory directory = new Directory();
-		
-		// uses the default.properties file in ./conf/
+		 Directory directory;
+		 
+		 // Use default.properties
+//		 directory = new Directory();
+		 // import photos from penn museum photo studio
+		 directory = new Directory("photo_studio.properties");
+		 
 		directory.importFiles();
-		
-		// To use another config file pass the path to the method		
-		// directory.importFiles("photo_studio.properties");
 	}
 
 }

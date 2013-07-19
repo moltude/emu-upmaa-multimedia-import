@@ -18,6 +18,7 @@ import com.drew.metadata.iptc.IptcDescriptor;
 import com.drew.metadata.iptc.IptcDirectory;
 import com.drew.metadata.xmp.XmpDescriptor;
 import com.drew.metadata.xmp.XmpDirectory;
+
 import com.kesoftware.imu.Map;
 import com.kesoftware.imu.Terms;
 import com.moltude.emu.upmaa.imu.Connection;
@@ -207,7 +208,7 @@ public class Validator {
 			XmpDescriptor desc = new XmpDescriptor((XmpDirectory) directory);
 			
 			// TODO get the fixed library from my work computer
-			// String objectName = desc.getDescription(XmpDirectory.TAG_TITLE);
+			objectName = desc.getDescription(XmpDirectory.TAG_TITLE);
 			
 			/**
 			 * IPTC
