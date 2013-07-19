@@ -21,13 +21,13 @@ import com.moltude.emu.upmaa.imu.Connection;
 public class Import {
 	// Holds the image metadata to be added to the emultimedia record
 	private Map imageMetadata;
+	
 	// Columns to be return from a query to the catalog module
 	private final String [] COLUMNS = {
 			"MulMultiMediaRef_tab.(irn)",
 			"MulMultimediaType_tab",
 			"MulMultimediaNotes0",
 			"irn",
-			"CatObjectNumber"
 		};
 	
 	// Logger 
@@ -271,6 +271,9 @@ public class Import {
 	}
 	
 	/**
+	 * NOTE :: This is probably UPMAA specific as we customized the Multimedia tab to have Type field for describing the relationship between the multimedia (image) 
+	 * and catalog record.
+	 * 
 	 * If there is more than one catalog record then the Type field on the catalog module should be set
 	 * to "In Group Overview" else "Primary View"<br>
 	 * 
