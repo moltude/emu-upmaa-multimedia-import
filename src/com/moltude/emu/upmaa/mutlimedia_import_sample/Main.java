@@ -12,13 +12,15 @@ public class Main {
 
 	public static void main(String[] args) {
 		 Directory directory;
-		 
+
 		 // Use default.properties
 //		 directory = new Directory();
-		 // import photos from penn museum photo studio
-		 directory = new Directory("photo_studio.properties");
 		 
-		directory.importFiles();
+		 if(args[0] != null) {
+			 // Run the jar
+			 directory = new Directory(args[0]);
+			 directory.importFiles();
+		 }
 	}
 
 }

@@ -13,6 +13,7 @@ package com.moltude.emu.upmaa.multimedia_import;
 
 import java.io.File;
 import java.io.FileFilter;
+import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
@@ -56,11 +57,38 @@ public class Directory {
 	 * Load settings from the specified properties file. See default.properties_sample for an example
 	 * properties file 
 	 * 
-	 * @param properties_file
+	 * @param folder
 	 */
-	public Directory(String properties_file) {
-		loadSettings(properties_file);
+	public Directory(String folder) {
+		if(validate(folder))
+			loadSettings(getPropertiesFile(folder));
+		else {
+			System.out.println("There was a problem validating the directory.");
+		}
 	}
+	
+	/**
+	 * This is the path to process. This folder must contain one and only one *.properties file
+	 * 
+	 * @param folder
+	 * @return
+	 */
+	private boolean validate(String folder) {
+		File file = new File(folder);
+		File[] files = file.listFiles(new PropertiesFileFilter());
+		
+		if(files.length == 1 )
+			return true;
+		return false;
+	}
+	
+	private String getPropertiesFile(String folder) {
+		File file = new File(folder);
+		File[] files = file.listFiles(new PropertiesFileFilter());
+		
+		return files[0].toString();
+	}
+	
 	
 	/**
 	 * 
@@ -102,13 +130,17 @@ public class Directory {
 		Properties properties = new Properties();
 		InputStream is = null;
 		try {
-			is = this.getClass().getClassLoader().getResourceAsStream(properties_file);
+			if(new File(properties_file).exists() ) {
+				is = new FileInputStream(new File(properties_file));
+			} else {
+				is = this.getClass().getClassLoader().getResourceAsStream(properties_file);
+			}
 			
 			if(is != null) {
 				properties.load(is); 
 				is.close();
 			} else {
-				System.out.println("Could not load properties");
+				System.out.println("Could not load properties " + properties_file);
 				System.exit(0);
 			}
 			
@@ -204,8 +236,9 @@ public class Directory {
 					moveFile(file, error_directory);
 					continue;
 				}
-
+				
 				long [] target_irns = validator.getTargetIrns(target_module, target_id);
+				System.out.println("valid");
 				// If the target irns could not all be resolved then log error and continue
 				if(target_irns == null) {
 					// Image metadata does not match EMu data
@@ -296,6 +329,10 @@ public class Directory {
 	 * @return true if there is // false if not
 	 */
 	private boolean filesToImportExist() {
+		if(FILES == null) {
+			FILES = new File(settings.getString("directory")).listFiles(new ImageFileFilter());
+		}
+
 		if(FILES.length > 0)
 			return true;
 		else 
@@ -324,6 +361,21 @@ class ImageFileFilter implements FileFilter {
 		      return true;
 	    if (pathname.getName().toLowerCase().endsWith(".pdf") && !pathname.getName().startsWith(".") )
 		      return true;
+	    return false;
+	  }
+	}
+
+
+/**
+ * Valid properties files
+ *
+ *
+ */
+class PropertiesFileFilter implements FileFilter {
+	  @Override
+	public boolean accept(File pathname) {
+	    if (pathname.getName().toLowerCase().endsWith(".properties") && !pathname.getName().startsWith(".") )
+	      return true;
 	    return false;
 	  }
 	}
