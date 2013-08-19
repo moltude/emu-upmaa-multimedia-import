@@ -4,6 +4,9 @@ import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
+import java.net.URLConnection;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.List;
 import java.util.StringTokenizer;
@@ -18,7 +21,6 @@ import com.drew.metadata.iptc.IptcDescriptor;
 import com.drew.metadata.iptc.IptcDirectory;
 import com.drew.metadata.xmp.XmpDescriptor;
 import com.drew.metadata.xmp.XmpDirectory;
-
 import com.kesoftware.imu.Map;
 import com.kesoftware.imu.Terms;
 import com.moltude.emu.upmaa.imu.Connection;
@@ -76,9 +78,9 @@ public class Validator {
 	 * @return
 	 */
 	private boolean isImage(File file) {
-		String mimetype= new MimetypesFileTypeMap().getContentType(file);
-        String type = mimetype.split("/")[0];
-        if(type.equals("image"))
+		String mimetype = URLConnection.guessContentTypeFromName(file.getAbsolutePath());
+        
+        if(mimetype.contains("image"))
             return true;
         else 
             return false;
@@ -416,7 +418,7 @@ public class Validator {
 			if(this.getIndexResourceType() != -1)
 				aux.put("DetResourceType", data[this.getIndexResourceType()]);
 			if(this.getIndexCreator() != -1)
-				aux.put("MulCreator", data[this.getIndexCreator()].replaceAll("\"", "").split(re1+re2+re3+re4+re5+re6) );
+				aux.put("MulCreator_tab", data[this.getIndexCreator()].replaceAll("\"", "").split(re1+re2+re3+re4+re5+re6) );
 			
 			return aux;
 		}
@@ -548,7 +550,9 @@ public class Validator {
 			try {
 				IptcDirectory directory = METADATA.getDirectory(IptcDirectory.class);
 				IptcDescriptor desc = new IptcDescriptor((IptcDirectory) directory);
-				if(desc.getCaptionDescription() == "null")
+				if(desc.getCaptionDescription() == null) 
+					return "";
+				else if(desc.getCaptionDescription() == "null")
 					return "";
 				// Handles when the caption matches the objectName
 				else if(desc.getCaptionDescription() == this.getObjectName())
@@ -569,8 +573,10 @@ public class Validator {
 	 */
 	public Map getImageMetadata() {
 		// if is not an image then return an empty map
-		if(!isImage(FILE)) 
+		if(!isImage(FILE)) {
+			System.out.println("This is not an image");
 			return new Map();
+		}
 		
 		Map aux = new Map();
 		// This will overwrite any existing values in the "MulCreator_tab" key.  If there is a value
@@ -579,10 +585,11 @@ public class Validator {
 		else {
 			// aux.put("MulCreator_tab", new String[] { "" });
 		}
-		if(this.getCaption() != null)
-			aux.put("MulDescription", this.getCaption());
-		else 
+		if(this.getCaption() == null)
 			aux.put("MulDescription", "");
+		else 
+			aux.put("MulDescription", this.getCaption());
+	
 		return aux;
 	}
 }

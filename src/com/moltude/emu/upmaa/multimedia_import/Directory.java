@@ -252,6 +252,7 @@ public class Directory {
 				metadata.putAll( validator.getAuxMetadata() );
 				// Get metadata from file (if present)
 				metadata.putAll( validator.getImageMetadata() );
+				
 				// create Emu record
 				createMultimediaRecord(target_irns, metadata, file);
 				

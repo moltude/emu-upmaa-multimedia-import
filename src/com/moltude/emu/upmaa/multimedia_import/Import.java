@@ -92,7 +92,7 @@ public class Import {
 	public int doImport(File file, long [] target_irns, String target_module, String target_id) {
 		// TODO finish writing uploadImageToEmu pending response from KE
 		long emultimedia_irn = -1;
-		emultimedia_irn = uploadImage(file, getTargetIdentifiers(target_irns, target_module, target_id) + ".  "+ imageMetadata.get("MulDescription") );
+		emultimedia_irn = uploadImage(file, getTargetIdentifiers(target_irns, target_module, target_id) + ".  " + imageMetadata.get("MulDescription") );
 		// If failed to upload image to EMu then return 		
 		if(emultimedia_irn == -1) {
 			return -1;
