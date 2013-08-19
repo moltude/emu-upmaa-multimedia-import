@@ -1,0 +1,11 @@
+#Setting to connect to the imu server
+# rename this file to imu.properties
+# User to connect as 
+user=
+# Users password 
+pass=
+# Port imu is running on 
+port=
+# Address of emu server
+host=
+ 
