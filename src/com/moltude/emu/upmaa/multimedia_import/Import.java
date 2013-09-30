@@ -131,8 +131,7 @@ public class Import {
 	private boolean attachMultimedia(long emultimedia_irn, long target_irn, String target_module, String catType) {
 		Map updates = new Map();
 		Connection con = new Connection(target_module);
-		
-		con.connect();
+
 		Map target_record = con.search(target_irn, COLUMNS);
 		
 		// If no target record was found
@@ -159,12 +158,11 @@ public class Import {
 		 updates.put("MulMultimediaType_tab", addArray( existingType, new String[] { catType }) );
 		
 		 // Pass updates
-		con.connect();
 		try {
 			con.updateRecord(target_irn, updates, null);
 		} catch (IMuException e) {
+			e.printStackTrace();
 		}
-		con.disconnect();
 		
 		return true;
 	}
@@ -188,9 +186,7 @@ public class Import {
 		FileInputStream fs = null;
 		try {
 			// Create shell multimedia record
-			con.connect();
-			long irn = con.createRecord(imageMetadata); // Updata with default metadata { Museum for Publication; Penn Museum Photo Studio }
-			con.disconnect();			
+			long irn = con.createRecord(imageMetadata); // Updata with default metadata { Museum for Publication; Penn Museum Photo Studio } 
 			// Pass update to 'master' column to create additional resolutions and full image validation
 			imageMetadata = new Map(); 
 			// this was included per instructions on users form. See posting:  
@@ -254,7 +250,6 @@ public class Import {
 			irns.add("irn", Long.toString(target_irns[t]) );
 		}
 		
-		con.connect();
 		Map[] maps = con.search(term,target_id);
 		
 		ArrayList<String> object_numbers = new ArrayList<String>();

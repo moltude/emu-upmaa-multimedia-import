@@ -54,14 +54,21 @@ public class Directory {
 	}
 	
 	/**
+	 * Loads a specific properties file stored in ./conf
+	 */
+	public Directory(String file_name) {
+		loadSettings(file_name);
+	}
+	
+	/**
 	 * Load settings from the specified properties file. See default.properties_sample for an example
 	 * properties file 
 	 * 
 	 * @param folder
 	 */
-	public Directory(String folder) {
+	public Directory(File folder) {
 		if(validate(folder))
-			loadSettings(getPropertiesFile(folder));
+			loadSettings(getPropertiesFile(folder.getAbsolutePath()));
 		else {
 			System.out.println("There was a problem validating the directory.");
 		}
@@ -73,9 +80,8 @@ public class Directory {
 	 * @param folder
 	 * @return
 	 */
-	private boolean validate(String folder) {
-		File file = new File(folder);
-		File[] files = file.listFiles(new PropertiesFileFilter());
+	private boolean validate(File folder) {
+		File[] files = folder.listFiles(new PropertiesFileFilter());
 		
 		if(files.length == 1 )
 			return true;
@@ -163,11 +169,28 @@ public class Directory {
 			}
 			
 			settings.put("metadata",metadata);
-			
+			 
 		} catch (FileNotFoundException fnfe) {
 			fnfe.printStackTrace();
 		} catch (IOException ioe) {
 			ioe.printStackTrace();
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+	}
+	
+	public void printSettings() {
+		if(settings==null || settings.size()==0) {
+			System.out.println("There is nothing in settings..exiting()");
+			System.exit(0);
+		}
+		
+		Iterator <String> iterator = settings.keySet().iterator();
+		
+		while(iterator.hasNext()) {
+			String key = iterator.next();
+			String value = settings.getString(key);
+			System.out.println(key + " -> " + value);
 		}
 	}
 	
@@ -236,9 +259,8 @@ public class Directory {
 					moveFile(file, error_directory);
 					continue;
 				}
-				
+
 				long [] target_irns = validator.getTargetIrns(target_module, target_id);
-				System.out.println("valid");
 				// If the target irns could not all be resolved then log error and continue
 				if(target_irns == null) {
 					// Image metadata does not match EMu data
@@ -306,7 +328,7 @@ public class Directory {
 	 * @param msg - error message to wirte
 	 */
 	private void logErrorMessage(String msg) {
-		logger.error(msg);
+		System.out.println(msg);
 	}
 
 	/**
@@ -319,8 +341,10 @@ public class Directory {
 	private void moveFile(File src, File dest) {
 		try {
 			src.renameTo( new File(dest.getAbsolutePath()+java.io.File.separator+src.getName()) );
-		} catch(NullPointerException e) { 
+		} catch(NullPointerException e) {
+			System.out.println(src.getAbsolutePath() + " --> " + dest.getAbsolutePath());
 			logger.error(e.getMessage());
+			e.printStackTrace();
 		}
 	}
 	

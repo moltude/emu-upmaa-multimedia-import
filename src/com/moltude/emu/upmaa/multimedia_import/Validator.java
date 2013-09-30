@@ -157,6 +157,7 @@ public class Validator {
 				// see if there is a metadata file to get this image data from
 				String metadata_row = findRowInMetadataTextFile(FILE.getName()); 
 				if( metadata_row != null) {
+					System.out.println(metadata_row);
 					// then the metadata file exists and a row was returned
 					// now I just need to get the object numbers and return 
 					// 
@@ -272,12 +273,18 @@ public class Validator {
 		for(int i=0;i<identifiers.length;i++) {
 			objectNumber.add(target_id, identifiers[i].trim());
 		}
-	
+
 		rows = connection.search(t, "irn,"+target_id);
-	
+		
+		System.out.println("IRN resutls.length " + rows.length);
+		
 		// Handle invalid object #s
 		if(rows == null) 
 			return null;
+		
+		for(Map row : rows) {
+			System.out.println(row.getString("irn") + "->" + row.getString("CatObjectNumber"));
+		}
 		
 		/**
 		 * Rewrite this to search through the results and add the IRNs where they match
@@ -306,7 +313,8 @@ public class Validator {
 		 */
 		if(irn_index == identifiers.length)
 			return irns;
-		else return null;
+		else 
+			return null;
 	}
 	
 	/**
