@@ -1,2 +1,2 @@
-object	resource	file	creator
-c355	"Unreviewed"	29286.jpg	"Penn Museum Photo Studio"
+object	resource	file	creator	type
+c355	"Unreviewed"	29286.jpg	"Penn Museum Photo Studio"	"Detail"

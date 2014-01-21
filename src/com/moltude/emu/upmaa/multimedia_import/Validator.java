@@ -46,6 +46,7 @@ public class Validator {
 	private int index_creator;
 	private int index_file;
 	private int index_resource_type;
+	private int index_type;
 
 	/**
 	 * imageValidator Constructor
@@ -63,6 +64,8 @@ public class Validator {
 		this.setIndexFile(-1);
 		this.setIndexObjectNumber(-1);
 		this.setIndexResourceType(-1);
+		// Type in this case refers to the 'Type' field on the catalog modue
+		this.setIndexType(-1);
 		
 		try {
 			if(isImage(FILE))
@@ -71,7 +74,7 @@ public class Validator {
 			e.printStackTrace();
 		}
 	}
-	
+
 	/**
 	 * Taken from Stackoverflow post /9643228/
 	 * @param file
@@ -111,6 +114,19 @@ public class Validator {
 	private void setIndexResourceType(int indexResourceType) {
 		this.index_resource_type = indexResourceType;
 	}
+	
+	private void setIndexType(int indexType) {
+		this.index_type = indexType;	
+	}
+	
+	
+	/**
+	 * @return the indexObjectNumber
+	 */
+	private int getIndexType() {
+		return index_type;
+	}
+
 	/**
 	 * @return the indexObjectNumber
 	 */
@@ -362,6 +378,7 @@ public class Validator {
 				else if(columns[t].toLowerCase().contains("file") ) 		{ this.setIndexFile(t); }
 				else if(columns[t].toLowerCase().contains("resource") ) 	{ this.setIndexResourceType(t); }
 				else if(columns[t].toLowerCase().contains("creator") ) 		{ this.setIndexCreator(t); }
+				else if(columns[t].toLowerCase().contains("type") ) 		{ this.setIndexType(t); }
 			}
 			
 		} catch (IOException e) {
@@ -423,9 +440,11 @@ public class Validator {
 			String [] data = this.findRowInMetadataTextFile(FILE.getName()).split("\t");
 			Map aux = new Map();
 			
-			if(this.getIndexResourceType() != -1)
+			if(getIndexResourceType() != -1)
 				aux.put("DetResourceType", data[this.getIndexResourceType()]);
-			if(this.getIndexCreator() != -1)
+			if(getIndexCreator() != -1)
+				aux.put("MulMultimediaType_tab", data[this.getIndexType()].replaceAll("\"", "").split(re1+re2+re3+re4+re5+re6) );
+			if(getIndexType() != -1)
 				aux.put("MulCreator_tab", data[this.getIndexCreator()].replaceAll("\"", "").split(re1+re2+re3+re4+re5+re6) );
 			
 			return aux;

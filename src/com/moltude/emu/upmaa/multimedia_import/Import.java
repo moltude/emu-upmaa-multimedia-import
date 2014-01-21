@@ -35,7 +35,7 @@ public class Import {
 	
 	/**
 	 * Constructor
-	 * @param logFile 
+	 * @param _metadadata map
 	 */
 	public Import(Map _metadata) {
 		imageMetadata = new Map();
@@ -45,7 +45,7 @@ public class Import {
 		else {
 			imageMetadata = new Map();
 		}
-		
+		// Q: Why was this commented out? 
 		// loadProperties();
 	}
 	
@@ -92,7 +92,7 @@ public class Import {
 	public int doImport(File file, long [] target_irns, String target_module, String target_id) {
 		// TODO finish writing uploadImageToEmu pending response from KE
 		long emultimedia_irn = -1;
-		emultimedia_irn = uploadImage(file, getTargetIdentifiers(target_irns, target_module, target_id) + ".  " + imageMetadata.get("MulDescription") );
+		emultimedia_irn = uploadImage(file, getImageDescription(target_irns, target_module, target_id) + ".  " + imageMetadata.get("MulDescription") );
 		// If failed to upload image to EMu then return 		
 		if(emultimedia_irn == -1) {
 			return -1;
@@ -124,9 +124,10 @@ public class Import {
 	 * Add the supplied image to the first position in the multimediaRef array<br>
 	 * 
 	 * @param emultimedia_irn
-	 * @param catType 
-	 * @param i
-	 * @return 
+	 * @param target_irn - IRN in the target module to link the image to
+	 * @param target_module - target module name ('ecatalogue','eevents','eaccessionlots')
+	 * @param catType -- Penn Museum custom field, specifies the relationship between the image and the multimedia record
+	 * @return True if attachment was successful; False otherwise
 	 */
 	private boolean attachMultimedia(long emultimedia_irn, long target_irn, String target_module, String catType) {
 		Map updates = new Map();
@@ -150,7 +151,7 @@ public class Import {
 		for(int t = 0; t<image.length; t++ ) {
 			existingIRNs[t] = image[t].getString("irn");
 			existingNotes[t] = image[t].getString("MulMultimediaNotes0" );
-			existingNotes[t] = image[t].getString("MulMultimediaNotes0" );
+			existingType[t] = image[t].getString("MulMultimediaType_tab" );
 		}
 		// Updates to the multimedia module
 		 updates.put("MulMultiMediaRef_tab", addArray(existingIRNs, new String [] { Long.toString(emultimedia_irn) } ));
@@ -162,6 +163,7 @@ public class Import {
 			con.updateRecord(target_irn, updates, null);
 		} catch (IMuException e) {
 			e.printStackTrace();
+			return false;
 		}
 		
 		return true;
@@ -241,7 +243,7 @@ public class Import {
 	 * @param target_id 
 	 * @return String of object numbers in the photo
 	 */
-	private String getTargetIdentifiers(long[] target_irns, String target_module, String target_id) {
+	private String getImageDescription(long[] target_irns, String target_module, String target_id) {
 		Connection con = new Connection(target_module);
 		Terms term = new Terms();
 		Terms irns = term.addOr();
