@@ -255,7 +255,7 @@ public class Directory {
 				// to data in EMu
 				Validator validator = new Validator(file);
 				// Checks EMu for an existing image with a similar file name (to cut down on duplicate images).
-				if( settings.getString("unique_identifier").equalsIgnoreCase("true") && validator.isIdentifierUnique() ) {
+				if( settings.getString("unique_identifier").equalsIgnoreCase("true") && !validator.isIdentifierUnique() ) {
 					moveFile(file, error_directory);
 					continue;
 				}

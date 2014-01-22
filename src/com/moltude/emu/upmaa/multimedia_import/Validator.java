@@ -443,9 +443,9 @@ public class Validator {
 			if(getIndexResourceType() != -1)
 				aux.put("DetResourceType", data[this.getIndexResourceType()]);
 			if(getIndexCreator() != -1)
-				aux.put("MulMultimediaType_tab", data[this.getIndexType()].replaceAll("\"", "").split(re1+re2+re3+re4+re5+re6) );
-			if(getIndexType() != -1)
 				aux.put("MulCreator_tab", data[this.getIndexCreator()].replaceAll("\"", "").split(re1+re2+re3+re4+re5+re6) );
+			if(getIndexType() != -1)
+				aux.put("MulMultimediaType_tab", data[this.getIndexType()].replaceAll("\"", "").split(re1+re2+re3+re4+re5+re6) );
 			
 			return aux;
 		}
